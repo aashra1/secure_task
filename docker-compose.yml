@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: securetask-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb+srv://aashrapandey00:aashra%40123@cluster0.3m8cive.mongodb.net/securetask?retryWrites=true&w=majority
+      JWT_SECRET: b2e1fca0955e4011b9d3c92bb1c55c98383e4c39fa094d38356a768723b4b0dd9e66a66e4eb4d3499d3e507f2ed62c11
+      JWT_REFRESH_SECRET: ae672fee3fbf17e3ca7c3291e551a4869bd5ac71a94a48cf217bc053694d5b2c
+      JWT_EXPIRY: 3600
+      SALT_ROUNDS: 12
+      MFA_ISSUER: SecureTask
+      FRONTEND_URL: http://localhost:3001
+      EMAIL_SKIP: true 
+    ports:
+      - "3000:3000"
+    networks:
+      - securetask-network
+    volumes:
+      - ./backend/logs:/app/logs
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: securetask-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    networks:
+      - securetask-network
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api
+
+networks:
+  securetask-network:
+    driver: bridge
