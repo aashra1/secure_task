@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
     } catch {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
+      localStorage.removeItem("authSession");
       setUser(null);
     } finally {
       setLoading(false);
@@ -39,6 +40,7 @@ export function AuthProvider({ children }) {
       return data;
     }
     setUser(data.user);
+    localStorage.setItem("authSession", "1");
     return data;
   };
 
@@ -58,6 +60,7 @@ export function AuthProvider({ children }) {
   const clearSession = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    localStorage.removeItem("authSession");
     setUser(null);
     setMfaChallenge(null);
   };

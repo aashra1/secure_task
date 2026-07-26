@@ -81,7 +81,7 @@ export default function Register() {
             <span>{score}/5</span>
           </div>
           <p className="muted tiny">
-            Use 8-128 chars with uppercase, lowercase, number, and special
+            Use 12-128 chars with uppercase, lowercase, number, and special
             character.
           </p>
           <PasswordField

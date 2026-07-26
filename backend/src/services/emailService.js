@@ -9,7 +9,7 @@ const transporter = () => nodemailer.createTransport({
 });
 
 const sendEmail = async ({ to, subject, html, text }) => {
-  if (!process.env.EMAIL_USER) {
+  if (!process.env.EMAIL_USER || (process.env.NODE_ENV !== 'production' && /example\.com$/i.test(process.env.EMAIL_HOST || ''))) {
     logger.info({ message: 'Email skipped in development', to, subject });
     return { skipped: true };
   }

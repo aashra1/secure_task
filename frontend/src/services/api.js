@@ -26,6 +26,7 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
+      localStorage.getItem("authSession") === "1" &&
       !originalRequest.url.includes("/auth/refresh-token")
     ) {
       originalRequest._retry = true;
@@ -46,6 +47,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+        localStorage.removeItem("authSession");
         window.location.href = "/login";
         return Promise.reject(refreshError);
       }
