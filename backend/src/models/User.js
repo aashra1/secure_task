@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const { encrypt } = require('../utils/encryption');
 
 const sessionSchema = new mongoose.Schema({
   jti: { type: String, required: true },
@@ -32,7 +33,9 @@ const userSchema = new mongoose.Schema({
     pendingSecret: { type: String, select: false },
     backupCodes: [{ type: String, select: false }]
   },
+  passwordChangedAt: Date,
   failedLoginAttempts: { type: Number, default: 0 },
+  lastFailedLoginAt: Date,
   lockUntil: Date,
   sessions: [sessionSchema],
   isActive: { type: Boolean, default: true }
@@ -43,6 +46,8 @@ userSchema.virtual('isLocked').get(function isLocked() {
 });
 
 userSchema.pre('save', async function hashPassword(next) {
+  if (this.isModified('mfa.secret') && this.mfa?.secret && !String(this.mfa.secret).includes(':')) this.mfa.secret = encrypt(this.mfa.secret);
+  if (this.isModified('mfa.pendingSecret') && this.mfa?.pendingSecret && !String(this.mfa.pendingSecret).includes(':')) this.mfa.pendingSecret = encrypt(this.mfa.pendingSecret);
   if (!this.isModified('password')) return next();
   const rounds = Number(process.env.SALT_ROUNDS || 12);
   this.password = await bcrypt.hash(this.password, rounds);
@@ -60,13 +65,20 @@ userSchema.methods.passwordWasUsed = async function passwordWasUsed(candidate) {
 };
 
 userSchema.methods.recordFailedLogin = async function recordFailedLogin() {
+  if (this.lastFailedLoginAt && this.lastFailedLoginAt < new Date(Date.now() - 15 * 60 * 1000)) {
+    this.failedLoginAttempts = 0;
+  }
   this.failedLoginAttempts += 1;
-  if (this.failedLoginAttempts >= 5) this.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+  this.lastFailedLoginAt = new Date();
+  if (this.failedLoginAttempts >= Number(process.env.LOGIN_MAX_ATTEMPTS || 5)) {
+    this.lockUntil = new Date(Date.now() + Number(process.env.LOGIN_LOCK_MINUTES || 15) * 60 * 1000);
+  }
   await this.save();
 };
 
 userSchema.methods.resetLoginAttempts = async function resetLoginAttempts() {
   this.failedLoginAttempts = 0;
+  this.lastFailedLoginAt = undefined;
   this.lockUntil = undefined;
   await this.save();
 };
