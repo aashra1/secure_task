@@ -1,7 +1,7 @@
 const { body } = require('express-validator');
 
 const passwordRule = body('password')
-  .isLength({ min: 8, max: 128 }).withMessage('Password must be 8-128 characters')
+  .isLength({ min: 12, max: 128 }).withMessage('Password must be 12-128 characters')
   .matches(/[a-z]/).withMessage('Password needs lowercase')
   .matches(/[A-Z]/).withMessage('Password needs uppercase')
   .matches(/\d/).withMessage('Password needs number')
@@ -29,7 +29,7 @@ const passwordResetValidation = [
 
 const newPasswordValidation = [
   body('newPassword')
-    .isLength({ min: 8, max: 128 })
+    .isLength({ min: 12, max: 128 })
     .matches(/[a-z]/)
     .matches(/[A-Z]/)
     .matches(/\d/)
