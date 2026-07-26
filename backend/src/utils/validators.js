@@ -4,7 +4,7 @@ const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email)
 
 const validatePassword = (password) => {
   const errors = [];
-  if (!password || password.length < 8) errors.push('Password must be at least 8 characters');
+  if (!password || password.length < 12) errors.push('Password must be at least 12 characters');
   if (password && password.length > 128) errors.push('Password must be at most 128 characters');
   if (!/[a-z]/.test(password || '')) errors.push('Password must include a lowercase letter');
   if (!/[A-Z]/.test(password || '')) errors.push('Password must include an uppercase letter');
