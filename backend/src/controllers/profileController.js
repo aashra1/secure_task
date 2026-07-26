@@ -2,6 +2,7 @@ const Task = require('../models/Task');
 const User = require('../models/User');
 const authService = require('../services/authService');
 const taskService = require('../services/taskService');
+const AuditLog = require('../models/AuditLog');
 
 const allowedProfileFields = ['name', 'bio', 'avatarUrl'];
 const pick = (source, fields) => Object.fromEntries(fields.filter((field) => source[field] !== undefined).map((field) => [field, source[field]]));
@@ -80,7 +81,19 @@ const adminDeleteUser = async (req, res, next) => {
   } catch (error) { return next(error); }
 };
 
+const adminSecurityAction = async (req, res, next) => {
+  try {
+    const update = req.body.action === 'reset_mfa' ? { 'mfa.enabled': false, 'mfa.secret': undefined, 'mfa.pendingSecret': undefined, 'mfa.backupCodes': [] } : { failedLoginAttempts: 0, lockUntil: undefined, lastFailedLoginAt: undefined };
+    const user = await User.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    await authService.logAudit(req, 'ADMIN_ACTION', 'success', { targetUser: req.params.id, action: req.body.action });
+    return res.json({ message: 'Security action applied' });
+  } catch (error) { return next(error); }
+};
+
+const adminAuditLogs = async (_req, res, next) => { try { return res.json(await AuditLog.find().sort('-createdAt').limit(500)); } catch (error) { return next(error); } };
+
 module.exports = {
   getProfile, updateProfile, changePassword, uploadAvatar, deleteAccount,
-  exportData, importData, adminGetUsers, adminUpdateUser, adminDeleteUser
+  exportData, importData, adminGetUsers, adminUpdateUser, adminDeleteUser, adminSecurityAction, adminAuditLogs
 };
