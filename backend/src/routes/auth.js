@@ -2,7 +2,8 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const controller = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
-const { authLimiter } = require('../middleware/rateLimiter');
+const { loginLimiter, registerLimiter, passwordResetLimiter, mfaLimiter, refreshLimiter } = require('../middleware/rateLimiter');
+const { captcha } = require('../middleware/captcha');
 const { registerValidation, loginValidation, mfaValidation, passwordResetValidation, newPasswordValidation } = require('../validations/authValidation');
 
 const router = express.Router();
@@ -12,17 +13,17 @@ const validate = (req, res, next) => {
   return next();
 };
 
-router.post('/register', authLimiter, registerValidation, validate, controller.register);
-router.post('/login', authLimiter, loginValidation, validate, controller.login);
-router.post('/verify-mfa', authLimiter, body('userId').isMongoId(), mfaValidation, validate, controller.verifyMfa);
+router.post('/register', registerLimiter, captcha('register'), registerValidation, validate, controller.register);
+router.post('/login', loginLimiter, captcha('login'), loginValidation, validate, controller.login);
+router.post('/verify-mfa', mfaLimiter, body('userId').isMongoId(), mfaValidation, validate, controller.verifyMfa);
 router.post('/mfa/setup', authenticate, controller.setupMfa);
 router.post('/mfa/confirm', authenticate, mfaValidation, validate, controller.confirmMfa);
 router.post('/mfa/disable', authenticate, controller.disableMfa);
-router.post('/refresh-token', authLimiter, controller.refreshToken);
+router.post('/refresh-token', refreshLimiter, controller.refreshToken);
 router.post('/logout', authenticate, controller.logout);
 router.post('/password/change', authenticate, body('currentPassword').isString().notEmpty(), newPasswordValidation, validate, controller.changePassword);
-router.post('/password/reset-request', authLimiter, passwordResetValidation, validate, controller.requestPasswordReset);
-router.post('/password/reset', authLimiter, body('token').isString().isLength({ min: 32 }), newPasswordValidation, validate, controller.resetPassword);
+router.post('/password/reset-request', passwordResetLimiter, captcha('forgot_password'), passwordResetValidation, validate, controller.requestPasswordReset);
+router.post('/password/reset', passwordResetLimiter, newPasswordValidation, validate, controller.resetPassword);
 router.get('/verify-email/:token', controller.verifyEmail);
 router.post('/verify-email/resend', authenticate, controller.resendVerification);
 
