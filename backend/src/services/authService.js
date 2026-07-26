@@ -8,6 +8,7 @@ const AuditLog = require('../models/AuditLog');
 const User = require('../models/User');
 const emailService = require('./emailService');
 const { validateEmail, validatePassword } = require('../utils/validators');
+const { decryptIfEncrypted } = require('../utils/encryption');
 
 const cookieOptions = () => ({
   httpOnly: true,
@@ -87,9 +88,12 @@ const verifyMfa = async (req) => {
   const user = await User.findById(req.body.userId).select('+mfa.secret +mfa.backupCodes');
   if (!user || !user.mfa.enabled) throw Object.assign(new Error('Invalid MFA request'), { status: 400 });
   const token = String(req.body.token || '').replace(/\s+/g, '');
-  const totpValid = speakeasy.totp.verify({ secret: user.mfa.secret, encoding: 'base32', token, window: 1 });
+  const totpValid = speakeasy.totp.verify({ secret: decryptIfEncrypted(user.mfa.secret), encoding: 'base32', token, window: 1 });
   const backupIndex = user.mfa.backupCodes.findIndex((codeHash) => bcrypt.compareSync(token, codeHash));
-  if (!totpValid && backupIndex === -1) throw Object.assign(new Error('Invalid MFA token'), { status: 401 });
+  if (!totpValid && backupIndex === -1) {
+    await logAudit(req, 'MFA_VERIFICATION_FAILED', 'failure', {}, user._id);
+    throw Object.assign(new Error('Invalid MFA token'), { status: 401 });
+  }
   if (backupIndex >= 0) user.mfa.backupCodes.splice(backupIndex, 1);
   const tokens = await generateTokens(user, req, true);
   await logAudit(req, 'LOGIN_SUCCESS', 'success', { mfa: true }, user._id);
@@ -107,7 +111,7 @@ const setupMfa = async (req) => {
 
 const confirmMfa = async (req) => {
   const user = await User.findById(req.user._id).select('+mfa.pendingSecret +mfa.backupCodes');
-  const valid = speakeasy.totp.verify({ secret: user.mfa.pendingSecret, encoding: 'base32', token: req.body.token, window: 1 });
+  const valid = speakeasy.totp.verify({ secret: decryptIfEncrypted(user.mfa.pendingSecret), encoding: 'base32', token: req.body.token, window: 1 });
   if (!valid) throw Object.assign(new Error('Invalid MFA token'), { status: 400 });
   const rawCodes = Array.from({ length: 10 }, () => crypto.randomBytes(5).toString('hex'));
   user.mfa.secret = user.mfa.pendingSecret;
