@@ -1,6 +1,12 @@
 const crypto = require('crypto');
 
-const getKey = () => crypto.createHash('sha256').update(process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'dev-key').digest();
+const getKey = () => {
+  const material = process.env.MFA_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
+  if (!material && process.env.NODE_ENV === 'production') {
+    throw new Error('MFA_ENCRYPTION_KEY is required in production');
+  }
+  return crypto.createHash('sha256').update(material || process.env.JWT_SECRET || 'development-only-key').digest();
+};
 
 const encrypt = (plainText) => {
   const iv = crypto.randomBytes(12);
@@ -20,4 +26,9 @@ const decrypt = (payload) => {
   ]).toString('utf8');
 };
 
-module.exports = { encrypt, decrypt };
+const decryptIfEncrypted = (payload) => {
+  if (!String(payload).includes(':')) return payload;
+  return decrypt(payload);
+};
+
+module.exports = { encrypt, decrypt, decryptIfEncrypted };
