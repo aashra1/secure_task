@@ -20,5 +20,7 @@ router.post('/me/import', controller.importData);
 router.get('/admin/users', authorize('admin'), controller.adminGetUsers);
 router.put('/admin/users/:id', authorize('admin'), param('id').isMongoId(), body('role').optional().isIn(['user', 'moderator', 'admin']), validate, controller.adminUpdateUser);
 router.delete('/admin/users/:id', authorize('admin'), param('id').isMongoId(), validate, controller.adminDeleteUser);
+router.post('/admin/users/:id/security', authorize('admin'), param('id').isMongoId(), body('action').isIn(['reset_mfa', 'unlock']), validate, controller.adminSecurityAction);
+router.get('/admin/audit-logs', authorize('admin'), controller.adminAuditLogs);
 
 module.exports = router;
