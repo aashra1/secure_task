@@ -42,8 +42,12 @@ export default function Register() {
       });
       navigate("/login");
     } catch (err) {
+      const validationError = err.response?.data?.errors?.[0]?.msg;
       setMessage(
-        err.response?.data?.message || err.message || "Registration failed",
+        validationError ||
+          err.response?.data?.message ||
+          err.message ||
+          "Registration failed",
       );
       setCaptchaToken("");
       setCaptchaAttempt((attempt) => attempt + 1);

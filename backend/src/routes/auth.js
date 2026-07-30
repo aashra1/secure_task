@@ -21,7 +21,12 @@ router.get('/captcha-config', (_req, res) => {
   return res.json({ siteKey: enabled ? process.env.CAPTCHA_SITE_KEY : null });
 });
 router.get('/google-config', (_req, res) => {
-  return res.json({ clientId: process.env.GOOGLE_CLIENT_ID || null });
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const configured =
+    clientId &&
+    !clientId.startsWith('your_') &&
+    clientId.endsWith('.apps.googleusercontent.com');
+  return res.json({ clientId: configured ? clientId : null });
 });
 router.post('/register', registerLimiter, captcha('register'), registerValidation, validate, controller.register);
 router.post('/login', loginLimiter, captcha('login'), loginValidation, validate, controller.login);
