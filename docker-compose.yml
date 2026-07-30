@@ -1,6 +1,18 @@
-version: '3.8'
-
 services:
+  mongo:
+    image: mongo:8.0
+    container_name: securetask-mongo
+    restart: unless-stopped
+    volumes:
+      - securetask-mongo-data:/data/db
+    networks:
+      - securetask-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -10,13 +22,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      MONGODB_URI: mongodb+srv://aashrapandey00:aashra%40123@cluster0.3m8cive.mongodb.net/securetask?retryWrites=true&w=majority
+      MONGODB_URI: mongodb://mongo:27017/securetask
       JWT_SECRET: b2e1fca0955e4011b9d3c92bb1c55c98383e4c39fa094d38356a768723b4b0dd9e66a66e4eb4d3499d3e507f2ed62c11
       JWT_REFRESH_SECRET: ae672fee3fbf17e3ca7c3291e551a4869bd5ac71a94a48cf217bc053694d5b2c
       JWT_EXPIRY: 3600
       SALT_ROUNDS: 12
       MFA_ISSUER: SecureTask
-      FRONTEND_URL: http://localhost:3001
+      FRONTEND_URL: https://localhost:3001
       EMAIL_SKIP: true 
     ports:
       - "3000:3000"
@@ -24,6 +36,9 @@ services:
       - securetask-network
     volumes:
       - ./backend/logs:/app/logs
+    depends_on:
+      mongo:
+        condition: service_healthy
 
   frontend:
     build:
@@ -32,14 +47,18 @@ services:
     container_name: securetask-frontend
     restart: unless-stopped
     ports:
-      - "3001:80"
+      - "3001:443"
     depends_on:
       - backend
     networks:
       - securetask-network
-    environment:
-      - REACT_APP_API_URL=http://localhost:3000/api
+    volumes:
+      - ./certs/localhost.pem:/etc/nginx/certs/localhost.pem:ro
+      - ./certs/localhost-key.pem:/etc/nginx/certs/localhost-key.pem:ro
 
 networks:
   securetask-network:
     driver: bridge
+
+volumes:
+  securetask-mongo-data:

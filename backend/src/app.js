@@ -3,6 +3,8 @@ const compression = require("compression");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const express = require("express");
+const fs = require("fs");
+const https = require("https");
 const connectDB = require("./db");
 const { generalLimiter, blockListedIps } = require("./middleware/rateLimiter");
 const {
@@ -16,7 +18,7 @@ const profileRoutes = require("./routes/profile");
 const logger = require("./utils/logger");
 
 const app = express();
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3001,http://localhost:3002")
+const allowedOrigins = (process.env.FRONTEND_URL || "https://localhost:3001,https://localhost:3002")
   .split(",")
   .map((origin) => origin.trim());
 
@@ -54,12 +56,26 @@ app.use((error, req, res, _next) => {
 });
 
 if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  const certificatePath = process.env.HTTPS_CERT_PATH;
+  const certificateKeyPath = process.env.HTTPS_KEY_PATH;
+
   connectDB()
-    .then(() =>
-      app.listen(process.env.PORT || 3000, () =>
-        logger.info(`API listening on ${process.env.PORT || 3000}`),
-      ),
-    )
+    .then(() => {
+      if (certificatePath && certificateKeyPath) {
+        return https
+          .createServer(
+            {
+              cert: fs.readFileSync(certificatePath),
+              key: fs.readFileSync(certificateKeyPath),
+            },
+            app,
+          )
+          .listen(port, () => logger.info(`HTTPS API listening on ${port}`));
+      }
+
+      return app.listen(port, () => logger.info(`HTTP API listening on ${port}`));
+    })
     .catch((error) => {
       logger.error(error);
       process.exit(1);
