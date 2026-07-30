@@ -23,6 +23,15 @@ const login = async (req, res, next) => {
   } catch (error) { return next(error); }
 };
 
+const googleLogin = async (req, res, next) => {
+  try {
+    const result = await authService.googleLogin(req);
+    if (result.mfaRequired) return res.json(result);
+    setAuthCookies(res, result);
+    return res.json({ user: result.user });
+  } catch (error) { return next(error); }
+};
+
 const verifyMfa = async (req, res, next) => {
   try {
     const result = await authService.verifyMfa(req);
@@ -109,6 +118,6 @@ const resendVerification = async (req, res, next) => {
 };
 
 module.exports = {
-  register, login, verifyMfa, setupMfa, confirmMfa, disableMfa, refreshToken,
+  register, login, googleLogin, verifyMfa, setupMfa, confirmMfa, disableMfa, refreshToken,
   logout, changePassword, requestPasswordReset, resetPassword, verifyEmail, resendVerification
 };

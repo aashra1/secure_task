@@ -2,12 +2,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Icon from "../components/Icons";
 import PasswordField from "../components/PasswordField";
+import GoogleSignIn from "../components/GoogleSignIn";
 import { register } from "../services/auth";
 import { createCaptchaPayload } from "../services/captcha";
 import { passwordScore } from "../utils/helpers";
+import useAuth from "../hooks/useAuth";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { googleLogin } = useAuth();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -40,6 +43,17 @@ export default function Register() {
       setSubmitting(false);
     }
   };
+  const signUpWithGoogle = async (credential) => {
+    setMessage("");
+    try {
+      const data = await googleLogin(credential);
+      navigate(data.mfaRequired ? "/mfa/verify" : "/");
+    } catch (err) {
+      setMessage(
+        err.response?.data?.message || err.message || "Google sign-up failed",
+      );
+    }
+  };
   return (
     <main className="auth-page">
       <section className="auth-card wide">
@@ -53,6 +67,12 @@ export default function Register() {
             A quieter place to track work that should not live in a messy inbox.
           </p>
         </div>
+        <GoogleSignIn
+          text="signup_with"
+          onCredential={signUpWithGoogle}
+          onError={(err) => setMessage(err.message)}
+        />
+        <div className="auth-divider"><span>or register with email</span></div>
         <form className="form" onSubmit={submit}>
           <label>
             Name

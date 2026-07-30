@@ -3,10 +3,11 @@ import { useState } from "react";
 import useAuth from "../hooks/useAuth";
 import Icon from "../components/Icons";
 import PasswordField from "../components/PasswordField";
+import GoogleSignIn from "../components/GoogleSignIn";
 import { createCaptchaPayload } from "../services/captcha";
 
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -26,6 +27,15 @@ export default function Login() {
       setSubmitting(false);
     }
   };
+  const signInWithGoogle = async (credential) => {
+    setError("");
+    try {
+      const data = await googleLogin(credential);
+      navigate(data.mfaRequired ? "/mfa/verify" : "/");
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Google sign-in failed");
+    }
+  };
   return (
     <main className="auth-page">
       <section className="auth-card">
@@ -40,6 +50,11 @@ export default function Login() {
             your account.
           </p>
         </div>
+        <GoogleSignIn
+          onCredential={signInWithGoogle}
+          onError={(err) => setError(err.message)}
+        />
+        <div className="auth-divider"><span>or use your email</span></div>
         <form className="form" onSubmit={submit}>
           <label>
             Email

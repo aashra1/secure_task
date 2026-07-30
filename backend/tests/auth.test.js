@@ -4,6 +4,7 @@ process.env.MONGODB_URI = 'mongodb://localhost/test';
 process.env.FRONTEND_URL = 'http://localhost:3001';
 process.env.CAPTCHA_SITE_KEY = '';
 process.env.CAPTCHA_SECRET_KEY = '';
+process.env.GOOGLE_CLIENT_ID = '';
 
 const request = require('supertest');
 const mongoose = require('mongoose');
@@ -28,6 +29,17 @@ test('captcha config is disabled when no secret is configured', async () => {
   const res = await request(app).get('/api/auth/captcha-config');
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ siteKey: null });
+});
+
+test('google config is disabled when no client ID is configured', async () => {
+  const res = await request(app).get('/api/auth/google-config');
+  expect(res.status).toBe(200);
+  expect(res.body).toEqual({ clientId: null });
+});
+
+test('google login requires a credential', async () => {
+  const res = await request(app).post('/api/auth/google').send({});
+  expect(res.status).toBe(400);
 });
 
 test('register rejects weak passwords', async () => {

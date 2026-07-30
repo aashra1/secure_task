@@ -10,6 +10,8 @@ export const login = (payload) =>
     }
     return r.data;
   });
+export const googleLogin = (credential) =>
+  api.post("/auth/google", { credential }).then((r) => r.data);
 export const verifyMfa = (payload) =>
   api.post("/auth/verify-mfa", payload).then((r) => {
     if (r.data.accessToken) {

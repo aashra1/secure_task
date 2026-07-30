@@ -150,6 +150,11 @@ progress { accent-color: var(--brand); width: 100%; }
 .auth-hero h1 { margin-bottom: 0.35rem; }
 .eyebrow { color: var(--brand-dark); font-size: 0.78rem; font-weight: 900; letter-spacing: 0.08em; margin-bottom: 0.15rem; text-transform: uppercase; }
 .center-link { justify-self: center; font-weight: 750; }
+.google-sign-in { min-height: 44px; width: 100%; }
+.google-sign-in > div { margin: 0 auto; }
+.auth-divider { align-items: center; color: var(--muted); display: flex; font-size: 0.78rem; gap: 12px; text-transform: uppercase; }
+.auth-divider::before, .auth-divider::after { background: var(--line); content: ""; flex: 1; height: 1px; }
+.auth-divider span { white-space: nowrap; }
 
 .input-wrap { display: grid; position: relative; }
 .input-wrap > .icon { color: var(--muted); left: 0.85rem; position: absolute; top: 50%; transform: translateY(-50%); z-index: 1; }

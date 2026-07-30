@@ -20,8 +20,12 @@ router.get('/captcha-config', (_req, res) => {
   }
   return res.json({ siteKey: enabled ? process.env.CAPTCHA_SITE_KEY : null });
 });
+router.get('/google-config', (_req, res) => {
+  return res.json({ clientId: process.env.GOOGLE_CLIENT_ID || null });
+});
 router.post('/register', registerLimiter, captcha('register'), registerValidation, validate, controller.register);
 router.post('/login', loginLimiter, captcha('login'), loginValidation, validate, controller.login);
+router.post('/google', loginLimiter, body('credential').isString().notEmpty(), validate, controller.googleLogin);
 router.post('/verify-mfa', mfaLimiter, body('userId').isMongoId(), mfaValidation, validate, controller.verifyMfa);
 router.post('/mfa/setup', authenticate, controller.setupMfa);
 router.post('/mfa/confirm', authenticate, mfaValidation, validate, controller.confirmMfa);

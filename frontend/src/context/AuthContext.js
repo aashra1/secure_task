@@ -44,6 +44,17 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const googleLogin = async (credential) => {
+    const data = await authApi.googleLogin(credential);
+    if (data.mfaRequired) {
+      setMfaChallenge(data.userId);
+      return data;
+    }
+    setUser(data.user);
+    localStorage.setItem("authSession", "1");
+    return data;
+  };
+
   const verifyMfa = async (token) => {
     const data = await authApi.verifyMfa({ userId: mfaChallenge, token });
     setUser(data.user);
@@ -71,6 +82,7 @@ export function AuthProvider({ children }) {
       loading,
       mfaChallenge,
       login,
+      googleLogin,
       verifyMfa,
       logout,
       clearSession,

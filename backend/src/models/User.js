@@ -14,7 +14,8 @@ const sessionSchema = new mongoose.Schema({
 
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-  password: { type: String, required: true, select: false },
+  password: { type: String, select: false },
+  googleId: { type: String, unique: true, sparse: true, select: false },
   passwordHistory: [{ type: String, select: false }],
   profile: {
     name: { type: String, required: true, trim: true, maxlength: 120 },
@@ -48,7 +49,7 @@ userSchema.virtual('isLocked').get(function isLocked() {
 userSchema.pre('save', async function hashPassword(next) {
   if (this.isModified('mfa.secret') && this.mfa?.secret && !String(this.mfa.secret).includes(':')) this.mfa.secret = encrypt(this.mfa.secret);
   if (this.isModified('mfa.pendingSecret') && this.mfa?.pendingSecret && !String(this.mfa.pendingSecret).includes(':')) this.mfa.pendingSecret = encrypt(this.mfa.pendingSecret);
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   const rounds = Number(process.env.SALT_ROUNDS || 12);
   this.password = await bcrypt.hash(this.password, rounds);
   return next();
@@ -98,6 +99,7 @@ userSchema.methods.createRawToken = function createRawToken() {
 userSchema.set('toJSON', {
   transform: (_, ret) => {
     delete ret.password;
+    delete ret.googleId;
     delete ret.passwordHistory;
     ret.mfa = { enabled: Boolean(ret.mfa?.enabled) };
     delete ret.sessions;

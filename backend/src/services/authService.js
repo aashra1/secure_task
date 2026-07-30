@@ -4,11 +4,13 @@ const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 const speakeasy = require('speakeasy');
 const { v4: uuidv4 } = require('uuid');
+const { OAuth2Client } = require('google-auth-library');
 const AuditLog = require('../models/AuditLog');
 const User = require('../models/User');
 const emailService = require('./emailService');
 const { validateEmail, validatePassword } = require('../utils/validators');
 const { decryptIfEncrypted } = require('../utils/encryption');
+const googleClient = new OAuth2Client();
 
 const cookieOptions = () => ({
   httpOnly: true,
@@ -71,6 +73,7 @@ const login = async (req) => {
   const user = await User.findOne({ email: String(email).toLowerCase(), isActive: true }).select('+password +passwordHistory +mfa.secret +mfa.backupCodes');
   if (!user) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
   if (user.isLocked) throw Object.assign(new Error('Account locked. Try again later.'), { status: 423 });
+  if (!user.password) throw Object.assign(new Error('Use Google to sign in to this account'), { status: 401 });
   const ok = await user.comparePassword(password);
   if (!ok) {
     await user.recordFailedLogin();
@@ -81,6 +84,67 @@ const login = async (req) => {
   if (user.mfa.enabled) return { mfaRequired: true, userId: user._id };
   const tokens = await generateTokens(user, req, false);
   await logAudit(req, 'LOGIN_SUCCESS', 'success', {}, user._id);
+  return { user, ...tokens };
+};
+
+const googleLogin = async (req) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    throw Object.assign(new Error('Google sign-in is not configured'), { status: 503 });
+  }
+
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: req.body.credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+  } catch {
+    throw Object.assign(new Error('Invalid Google credential'), { status: 401 });
+  }
+  const payload = ticket.getPayload();
+  if (!payload?.sub || !payload.email || !payload.email_verified) {
+    throw Object.assign(new Error('Google account email is not verified'), { status: 401 });
+  }
+
+  const email = payload.email.toLowerCase();
+  let user = await User.findOne({ googleId: payload.sub, isActive: true }).select('+googleId +mfa.secret +mfa.backupCodes');
+  let created = false;
+
+  if (!user) {
+    user = await User.findOne({ email, isActive: true }).select('+googleId +mfa.secret +mfa.backupCodes');
+    if (user && user.googleId && user.googleId !== payload.sub) {
+      throw Object.assign(new Error('This email is linked to another Google account'), { status: 409 });
+    }
+    if (user && !user.googleId) {
+      const googleControlsEmail = email.endsWith('@gmail.com') || Boolean(payload.hd);
+      if (!googleControlsEmail) {
+        throw Object.assign(new Error('Sign in with your password before linking this Google account'), { status: 409 });
+      }
+      user.googleId = payload.sub;
+      user.isEmailVerified = true;
+      if (!user.profile.avatarUrl && payload.picture) user.profile.avatarUrl = payload.picture;
+      await user.save();
+    }
+  }
+
+  if (!user) {
+    user = await User.create({
+      email,
+      googleId: payload.sub,
+      profile: {
+        name: payload.name || 'SecureTask User',
+        avatarUrl: payload.picture
+      },
+      isEmailVerified: true
+    });
+    created = true;
+  }
+
+  if (user.isLocked) throw Object.assign(new Error('Account locked. Try again later.'), { status: 423 });
+  if (user.mfa.enabled) return { mfaRequired: true, userId: user._id };
+
+  const tokens = await generateTokens(user, req, false);
+  await logAudit(req, created ? 'REGISTER' : 'LOGIN_SUCCESS', 'success', { provider: 'google' }, user._id);
   return { user, ...tokens };
 };
 
@@ -189,6 +253,6 @@ const verifyEmail = async (req) => {
 };
 
 module.exports = {
-  cookieOptions, register, login, verifyMfa, setupMfa, confirmMfa, generateTokens,
+  cookieOptions, register, login, googleLogin, verifyMfa, setupMfa, confirmMfa, generateTokens,
   refreshToken, logout, changePassword, requestPasswordReset, resetPassword, verifyEmail, logAudit
 };
