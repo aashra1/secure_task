@@ -8,10 +8,11 @@ const blockListedIps = (req, res, next) => {
   return next();
 };
 
-const makeLimiter = ({ windowMs, limit, keyGenerator }) => rateLimit({
+const makeLimiter = ({ windowMs, limit, keyGenerator, skipSuccessfulRequests = false }) => rateLimit({
   windowMs,
   limit,
   keyGenerator,
+  skipSuccessfulRequests,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => res.status(429).json({ message: 'Too many attempts. Try again later.' })
@@ -25,8 +26,9 @@ const generalLimiter = makeLimiter({
 });
 const loginLimiter = makeLimiter({
   windowMs: Number(process.env.LOGIN_RATE_WINDOW_MINUTES || 15) * 60 * 1000,
-  limit: Number(process.env.LOGIN_MAX_ATTEMPTS || 5),
-  keyGenerator: emailKey
+  limit: Number(process.env.LOGIN_MAX_ATTEMPTS || 15),
+  keyGenerator: emailKey,
+  skipSuccessfulRequests: true
 });
 const registerLimiter = makeLimiter({
   windowMs: 60 * 60 * 1000,

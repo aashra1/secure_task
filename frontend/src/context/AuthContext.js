@@ -20,8 +20,6 @@ export function AuthProvider({ children }) {
       const response = await api.get("/profile/me");
       setUser(response.data.user || response.data);
     } catch {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
       localStorage.removeItem("authSession");
       setUser(null);
     } finally {
@@ -36,7 +34,7 @@ export function AuthProvider({ children }) {
   const login = async (payload) => {
     const data = await authApi.login(payload);
     if (data.mfaRequired || data.requiresMfa) {
-      setMfaChallenge(data.userId);
+      setMfaChallenge(true);
       return data;
     }
     setUser(data.user);
@@ -47,7 +45,7 @@ export function AuthProvider({ children }) {
   const googleLogin = async (credential) => {
     const data = await authApi.googleLogin(credential);
     if (data.mfaRequired) {
-      setMfaChallenge(data.userId);
+      setMfaChallenge(true);
       return data;
     }
     setUser(data.user);
@@ -56,9 +54,10 @@ export function AuthProvider({ children }) {
   };
 
   const verifyMfa = async (token) => {
-    const data = await authApi.verifyMfa({ userId: mfaChallenge, token });
+    const data = await authApi.verifyMfa({ token });
     setUser(data.user);
     setMfaChallenge(null);
+    localStorage.setItem("authSession", "1");
     return data;
   };
 
@@ -69,8 +68,6 @@ export function AuthProvider({ children }) {
   };
 
   const clearSession = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
     localStorage.removeItem("authSession");
     setUser(null);
     setMfaChallenge(null);

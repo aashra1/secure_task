@@ -1,6 +1,7 @@
 const { body } = require('express-validator');
 
 const createTaskValidation = [
+  body('attachments').not().exists().withMessage('File attachments are not allowed'),
   body('title').trim().isLength({ min: 1, max: 160 }),
   body('description').optional().isLength({ max: 5000 }),
   body('status').optional().isIn(['todo', 'in_progress', 'done', 'archived']),
@@ -11,6 +12,7 @@ const createTaskValidation = [
 ];
 
 const updateTaskValidation = [
+  body('attachments').not().exists().withMessage('File attachments are not allowed'),
   body('title').optional().trim().isLength({ min: 1, max: 160 }),
   body('description').optional().isLength({ max: 5000 }),
   body('status').optional().isIn(['todo', 'in_progress', 'done', 'archived']),

@@ -3,11 +3,20 @@ const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const User = require('../models/User');
 
+const accessVerifyOptions = {
+  algorithms: ['HS256'],
+  issuer: process.env.JWT_ISSUER || 'securetask-api',
+  audience: process.env.JWT_AUDIENCE || 'securetask-web'
+};
+
 const authenticate = async (req, res, next) => {
   try {
-    const token = req.cookies.accessToken || (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    const token = req.cookies.accessToken;
     if (!token) return res.status(401).json({ message: 'Authentication required' });
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET, accessVerifyOptions);
+    if (payload.type !== 'access' || !mongoose.Types.ObjectId.isValid(payload.sub) || !payload.jti) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
     const user = await User.findOne({ _id: payload.sub, isActive: true });
     if (!user || !user.sessions.some((session) => session.jti === payload.jti && session.expiresAt > new Date())) {
       return res.status(401).json({ message: 'Session expired' });

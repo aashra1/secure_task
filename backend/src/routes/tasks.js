@@ -1,7 +1,7 @@
 const express = require('express');
 const { param, validationResult } = require('express-validator');
 const controller = require('../controllers/taskController');
-const { authenticate, authorize, checkOwnership } = require('../middleware/auth');
+const { authenticate, authorize, checkOwnership, requireMfa } = require('../middleware/auth');
 const { createTaskValidation, updateTaskValidation } = require('../validations/taskValidation');
 
 const router = express.Router();
@@ -11,7 +11,7 @@ const validate = (req, res, next) => {
   return next();
 };
 
-router.use(authenticate);
+router.use(authenticate, requireMfa);
 router.get('/admin/all', authorize('admin'), controller.adminGetAllTasks);
 router.get('/', controller.getTasks);
 router.post('/', createTaskValidation, validate, controller.createTask);

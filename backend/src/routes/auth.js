@@ -31,7 +31,7 @@ router.get('/google-config', (_req, res) => {
 router.post('/register', registerLimiter, captcha('register'), registerValidation, validate, controller.register);
 router.post('/login', loginLimiter, captcha('login'), loginValidation, validate, controller.login);
 router.post('/google', loginLimiter, body('credential').isString().notEmpty(), validate, controller.googleLogin);
-router.post('/verify-mfa', mfaLimiter, body('userId').isMongoId(), mfaValidation, validate, controller.verifyMfa);
+router.post('/verify-mfa', mfaLimiter, mfaValidation, validate, controller.verifyMfa);
 router.post('/mfa/setup', authenticate, controller.setupMfa);
 router.post('/mfa/confirm', authenticate, mfaValidation, validate, controller.confirmMfa);
 router.post('/mfa/disable', authenticate, controller.disableMfa);

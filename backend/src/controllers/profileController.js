@@ -34,8 +34,8 @@ const deleteAccount = async (req, res, next) => {
     req.user.sessions = [];
     await req.user.save();
     await authService.logAudit(req, 'ACCOUNT_DEACTIVATED');
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    res.clearCookie('accessToken', authService.cookieOptions());
+    res.clearCookie('refreshToken', authService.cookieOptions());
     res.status(204).send();
   } catch (error) { next(error); }
 };

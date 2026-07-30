@@ -1,7 +1,7 @@
 const Task = require('../models/Task');
 const { logAudit } = require('./authService');
 
-const allowedTaskFields = ['title', 'description', 'status', 'priority', 'dueDate', 'tags', 'subtasks', 'attachments'];
+const allowedTaskFields = ['title', 'description', 'status', 'priority', 'dueDate', 'tags', 'subtasks'];
 const pick = (source, fields) => Object.fromEntries(fields.filter((field) => source[field] !== undefined).map((field) => [field, source[field]]));
 
 const createTask = async (req) => {

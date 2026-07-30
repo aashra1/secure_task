@@ -25,9 +25,11 @@ services:
       NODE_ENV: production
       PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/securetask
-      JWT_SECRET: b2e1fca0955e4011b9d3c92bb1c55c98383e4c39fa094d38356a768723b4b0dd9e66a66e4eb4d3499d3e507f2ed62c11
-      JWT_REFRESH_SECRET: ae672fee3fbf17e3ca7c3291e551a4869bd5ac71a94a48cf217bc053694d5b2c
       JWT_EXPIRY: 3600
+      JWT_REFRESH_EXPIRY: 604800
+      LOGIN_MAX_ATTEMPTS: 15
+      LOGIN_RATE_WINDOW_MINUTES: 15
+      TRUST_PROXY_HOPS: 1
       SALT_ROUNDS: 12
       MFA_ISSUER: SecureTask
       FRONTEND_URL: https://localhost:3001
@@ -38,8 +40,8 @@ services:
       # Google's official reCAPTCHA v2 checkbox test keys for localhost.
       CAPTCHA_SITE_KEY: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
       CAPTCHA_SECRET_KEY: 6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     networks:
       - securetask-network
     volumes:

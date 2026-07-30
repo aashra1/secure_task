@@ -1,5 +1,8 @@
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[character]));
 
 const transporter = () => nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -26,7 +29,7 @@ const sendVerificationEmail = (user, token) => {
     to: user.email,
     subject: 'Verify your SecureTask email',
     text: `Verify your email: ${link}`,
-    html: `<p>Hello ${user.profile.name},</p><p>Verify your SecureTask email:</p><p><a href="${link}">Verify email</a></p>`
+    html: `<p>Hello ${escapeHtml(user.profile.name)},</p><p>Verify your SecureTask email:</p><p><a href="${escapeHtml(link)}">Verify email</a></p>`
   });
 };
 
@@ -36,7 +39,7 @@ const sendResetPasswordEmail = (user, token) => {
     to: user.email,
     subject: 'Reset your SecureTask password',
     text: `Reset your password: ${link}`,
-    html: `<p>Use this secure link to reset your password. It expires soon.</p><p><a href="${link}">Reset password</a></p>`
+    html: `<p>Use this secure link to reset your password. It expires soon.</p><p><a href="${escapeHtml(link)}">Reset password</a></p>`
   });
 };
 

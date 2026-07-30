@@ -11,11 +11,17 @@ const emailService = require('./emailService');
 const { validateEmail, validatePassword } = require('../utils/validators');
 const { decryptIfEncrypted } = require('../utils/encryption');
 const googleClient = new OAuth2Client();
+const jwtDefaults = {
+  algorithm: 'HS256',
+  issuer: process.env.JWT_ISSUER || 'securetask-api',
+  audience: process.env.JWT_AUDIENCE || 'securetask-web'
+};
 
 const cookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict'
+  sameSite: 'strict',
+  path: '/'
 });
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -34,7 +40,8 @@ const logAudit = async (req, action, status = 'success', details = {}, userId = 
 const generateTokens = async (user, req, mfa = true) => {
   const jti = uuidv4();
   const refreshRaw = crypto.randomBytes(48).toString('hex');
-  const refreshToken = jwt.sign({ sub: user._id.toString(), jti }, process.env.JWT_REFRESH_SECRET, {
+  const refreshToken = jwt.sign({ sub: user._id.toString(), jti, type: 'refresh' }, process.env.JWT_REFRESH_SECRET, {
+    ...jwtDefaults,
     expiresIn: Number(process.env.JWT_REFRESH_EXPIRY || 604800)
   });
   const refreshTokenHash = await bcrypt.hash(`${refreshRaw}.${refreshToken}`, Number(process.env.SALT_ROUNDS || 12));
@@ -42,7 +49,8 @@ const generateTokens = async (user, req, mfa = true) => {
   user.sessions.push({ jti, refreshTokenHash, userAgent: req.get('user-agent'), ip: req.ip, expiresAt });
   user.sessions = user.sessions.filter((session) => session.expiresAt > new Date()).slice(-5);
   await user.save();
-  const accessToken = jwt.sign({ sub: user._id.toString(), role: user.role, jti, mfa }, process.env.JWT_SECRET, {
+  const accessToken = jwt.sign({ sub: user._id.toString(), role: user.role, jti, mfa, type: 'access' }, process.env.JWT_SECRET, {
+    ...jwtDefaults,
     expiresIn: Number(process.env.JWT_EXPIRY || 3600)
   });
   return { accessToken, refreshToken: `${refreshRaw}.${refreshToken}`, jti };
@@ -81,7 +89,7 @@ const login = async (req) => {
     throw Object.assign(new Error('Invalid credentials'), { status: 401 });
   }
   await user.resetLoginAttempts();
-  if (user.mfa.enabled) return { mfaRequired: true, userId: user._id };
+  if (user.mfa.enabled) return { mfaRequired: true, mfaChallenge: generateMfaChallenge(user) };
   const tokens = await generateTokens(user, req, false);
   await logAudit(req, 'LOGIN_SUCCESS', 'success', {}, user._id);
   return { user, ...tokens };
@@ -141,7 +149,7 @@ const googleLogin = async (req) => {
   }
 
   if (user.isLocked) throw Object.assign(new Error('Account locked. Try again later.'), { status: 423 });
-  if (user.mfa.enabled) return { mfaRequired: true, userId: user._id };
+  if (user.mfa.enabled) return { mfaRequired: true, mfaChallenge: generateMfaChallenge(user) };
 
   const tokens = await generateTokens(user, req, false);
   await logAudit(req, created ? 'REGISTER' : 'LOGIN_SUCCESS', 'success', { provider: 'google' }, user._id);
@@ -149,7 +157,21 @@ const googleLogin = async (req) => {
 };
 
 const verifyMfa = async (req) => {
-  const user = await User.findById(req.body.userId).select('+mfa.secret +mfa.backupCodes');
+  const challenge = req.cookies.mfaChallenge;
+  let challengePayload;
+  try {
+    challengePayload = jwt.verify(challenge, process.env.JWT_SECRET, {
+      algorithms: ['HS256'],
+      issuer: jwtDefaults.issuer,
+      audience: jwtDefaults.audience
+    });
+  } catch {
+    throw Object.assign(new Error('Invalid or expired MFA challenge'), { status: 401 });
+  }
+  if (challengePayload.type !== 'mfa_challenge') {
+    throw Object.assign(new Error('Invalid or expired MFA challenge'), { status: 401 });
+  }
+  const user = await User.findById(challengePayload.sub).select('+mfa.secret +mfa.backupCodes');
   if (!user || !user.mfa.enabled) throw Object.assign(new Error('Invalid MFA request'), { status: 400 });
   const token = String(req.body.token || '').replace(/\s+/g, '');
   const totpValid = speakeasy.totp.verify({ secret: decryptIfEncrypted(user.mfa.secret), encoding: 'base32', token, window: 1 });
@@ -188,10 +210,18 @@ const confirmMfa = async (req) => {
 };
 
 const refreshToken = async (req) => {
-  const presented = req.cookies.refreshToken || req.body.refreshToken;
+  const presented = req.cookies.refreshToken;
   if (!presented) throw Object.assign(new Error('Refresh token required'), { status: 401 });
+  if (!/^[a-f0-9]{96}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(presented)) {
+    throw Object.assign(new Error('Invalid refresh token'), { status: 401 });
+  }
   const rawJwt = presented.split('.').slice(1).join('.');
-  const payload = jwt.verify(rawJwt, process.env.JWT_REFRESH_SECRET);
+  const payload = jwt.verify(rawJwt, process.env.JWT_REFRESH_SECRET, {
+    algorithms: ['HS256'],
+    issuer: jwtDefaults.issuer,
+    audience: jwtDefaults.audience
+  });
+  if (payload.type !== 'refresh') throw Object.assign(new Error('Invalid refresh token'), { status: 401 });
   const user = await User.findById(payload.sub);
   const session = user?.sessions.find((item) => item.jti === payload.jti);
   if (!session || !(await bcrypt.compare(presented, session.refreshTokenHash))) throw Object.assign(new Error('Invalid refresh token'), { status: 401 });
@@ -199,6 +229,12 @@ const refreshToken = async (req) => {
   await user.save();
   return generateTokens(user, req, true);
 };
+
+const generateMfaChallenge = (user) => jwt.sign(
+  { sub: user._id.toString(), type: 'mfa_challenge' },
+  process.env.JWT_SECRET,
+  { ...jwtDefaults, expiresIn: '5m' }
+);
 
 const logout = async (req) => {
   req.user.sessions = req.user.sessions.filter((session) => session.jti !== req.auth.jti);

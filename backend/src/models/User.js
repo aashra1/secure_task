@@ -71,7 +71,7 @@ userSchema.methods.recordFailedLogin = async function recordFailedLogin() {
   }
   this.failedLoginAttempts += 1;
   this.lastFailedLoginAt = new Date();
-  if (this.failedLoginAttempts >= Number(process.env.LOGIN_MAX_ATTEMPTS || 5)) {
+  if (this.failedLoginAttempts >= Number(process.env.LOGIN_MAX_ATTEMPTS || 15)) {
     this.lockUntil = new Date(Date.now() + Number(process.env.LOGIN_LOCK_MINUTES || 15) * 60 * 1000);
   }
   await this.save();

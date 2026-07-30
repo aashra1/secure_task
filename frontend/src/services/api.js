@@ -6,15 +6,25 @@ const api = axios.create({
     process.env.REACT_APP_API_URL ||
     "https://localhost:3000/api",
   withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: "csrfToken",
+  xsrfHeaderName: "X-CSRF-Token",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const csrfCookie = document.cookie
+    .split("; ")
+    .find((cookie) => cookie.startsWith("csrfToken="));
+  if (
+    csrfCookie &&
+    !["get", "head", "options"].includes(config.method?.toLowerCase())
+  ) {
+    config.headers["X-CSRF-Token"] = decodeURIComponent(
+      csrfCookie.split("=").slice(1).join("="),
+    );
   }
   return config;
 });
@@ -31,22 +41,9 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true;
       try {
-        const refreshToken = localStorage.getItem("refreshToken");
-        const response = await api.post(
-          "/auth/refresh-token",
-          refreshToken ? { refreshToken } : {},
-        );
-        if (response.data.accessToken) {
-          localStorage.setItem("accessToken", response.data.accessToken);
-          if (response.data.refreshToken) {
-            localStorage.setItem("refreshToken", response.data.refreshToken);
-          }
-          originalRequest.headers.Authorization = `Bearer ${response.data.accessToken}`;
-        }
+        await api.post("/auth/refresh-token");
         return api(originalRequest);
       } catch (refreshError) {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
         localStorage.removeItem("authSession");
         window.location.href = "/login";
         return Promise.reject(refreshError);

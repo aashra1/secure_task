@@ -11,32 +11,42 @@ const {
   securityHeaders,
   sanitizeInput,
   preventNoSqlInjection,
+  rejectNoSqlOperators,
+  validateHostHeader,
+  rejectFileUploads,
 } = require("./middleware/security");
+const { csrfProtection } = require("./middleware/csrf");
 const authRoutes = require("./routes/auth");
 const taskRoutes = require("./routes/tasks");
 const profileRoutes = require("./routes/profile");
 const logger = require("./utils/logger");
+const { validateSecurityConfig } = require("./utils/config");
 
 const app = express();
 const allowedOrigins = (process.env.FRONTEND_URL || "https://localhost:3001,https://localhost:3002")
   .split(",")
   .map((origin) => origin.trim());
 
-app.set("trust proxy", 1);
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS || 0));
+app.disable("x-powered-by");
+app.use(validateHostHeader);
 app.use(securityHeaders);
 app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token"],
   }),
 );
 app.use(compression());
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
+app.use(csrfProtection);
 app.use(blockListedIps);
 app.use(generalLimiter);
+app.use(rejectFileUploads);
+app.use(rejectNoSqlOperators);
 app.use(preventNoSqlInjection);
 app.use(sanitizeInput);
 
@@ -56,6 +66,7 @@ app.use((error, req, res, _next) => {
 });
 
 if (require.main === module) {
+  validateSecurityConfig();
   const port = process.env.PORT || 3000;
   const certificatePath = process.env.HTTPS_CERT_PATH;
   const certificateKeyPath = process.env.HTTPS_KEY_PATH;

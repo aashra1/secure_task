@@ -7,6 +7,15 @@ const setAuthCookies = (res, tokens) => {
   res.cookie('refreshToken', tokens.refreshToken, { ...authService.cookieOptions(), maxAge: Number(process.env.JWT_REFRESH_EXPIRY || 604800) * 1000 });
 };
 
+const setMfaChallenge = (res, result) => {
+  res.cookie('mfaChallenge', result.mfaChallenge, {
+    ...authService.cookieOptions(),
+    path: '/api/auth/verify-mfa',
+    maxAge: 5 * 60 * 1000
+  });
+  return res.json({ mfaRequired: true });
+};
+
 const register = async (req, res, next) => {
   try {
     const user = await authService.register(req);
@@ -17,7 +26,7 @@ const register = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const result = await authService.login(req);
-    if (result.mfaRequired) return res.json(result);
+    if (result.mfaRequired) return setMfaChallenge(res, result);
     setAuthCookies(res, result);
     return res.json({ user: result.user });
   } catch (error) { return next(error); }
@@ -26,7 +35,7 @@ const login = async (req, res, next) => {
 const googleLogin = async (req, res, next) => {
   try {
     const result = await authService.googleLogin(req);
-    if (result.mfaRequired) return res.json(result);
+    if (result.mfaRequired) return setMfaChallenge(res, result);
     setAuthCookies(res, result);
     return res.json({ user: result.user });
   } catch (error) { return next(error); }
@@ -36,6 +45,7 @@ const verifyMfa = async (req, res, next) => {
   try {
     const result = await authService.verifyMfa(req);
     setAuthCookies(res, result);
+    res.clearCookie('mfaChallenge', { ...authService.cookieOptions(), path: '/api/auth/verify-mfa' });
     res.json({ user: result.user });
   } catch (error) { next(error); }
 };
@@ -69,8 +79,8 @@ const refreshToken = async (req, res, next) => {
 const logout = async (req, res, next) => {
   try {
     await authService.logout(req);
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    res.clearCookie('accessToken', authService.cookieOptions());
+    res.clearCookie('refreshToken', authService.cookieOptions());
     res.json({ message: 'Logged out' });
   } catch (error) { next(error); }
 };
@@ -78,8 +88,8 @@ const logout = async (req, res, next) => {
 const changePassword = async (req, res, next) => {
   try {
     await authService.changePassword(req);
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    res.clearCookie('accessToken', authService.cookieOptions());
+    res.clearCookie('refreshToken', authService.cookieOptions());
     res.json({ message: 'Password changed. Please sign in again.' });
   } catch (error) { next(error); }
 };
