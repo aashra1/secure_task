@@ -1,10 +1,10 @@
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import useAuth from "../hooks/useAuth";
 import Icon from "../components/Icons";
 import PasswordField from "../components/PasswordField";
 import GoogleSignIn from "../components/GoogleSignIn";
-import { createCaptchaPayload } from "../services/captcha";
+import CaptchaCheckbox from "../components/CaptchaCheckbox";
 
 export default function Login() {
   const { user, login, googleLogin } = useAuth();
@@ -12,17 +12,30 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaAttempt, setCaptchaAttempt] = useState(0);
+  const captchaError = useCallback((err) => setError(err.message), []);
+  const captchaChange = useCallback((token) => setCaptchaToken(token), []);
   if (user) return <Navigate to="/" replace />;
   const submit = async (event) => {
     event.preventDefault();
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA before logging in.");
+      return;
+    }
     setError("");
     setSubmitting(true);
     try {
-      const captcha = await createCaptchaPayload("login");
-      const data = await login({ ...form, ...captcha });
+      const data = await login({
+        ...form,
+        captchaToken,
+        captchaVersion: "v2",
+      });
       navigate(data.mfaRequired ? "/mfa/verify" : "/");
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Login failed");
+      setCaptchaToken("");
+      setCaptchaAttempt((attempt) => attempt + 1);
     } finally {
       setSubmitting(false);
     }
@@ -76,8 +89,13 @@ export default function Login() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
           />
+          <CaptchaCheckbox
+            key={captchaAttempt}
+            onChange={captchaChange}
+            onError={captchaError}
+          />
           {error && <p className="error">{error}</p>}
-          <button disabled={submitting}>
+          <button disabled={submitting || !captchaToken}>
             <Icon name="lock" size={18} />
             {submitting ? "Verifying…" : "Login"}
           </button>

@@ -25,16 +25,16 @@ The local environment should contain:
 FRONTEND_URL=https://localhost:3001
 HTTPS_CERT_PATH=../certs/localhost.pem
 HTTPS_KEY_PATH=../certs/localhost-key.pem
-CAPTCHA_SITE_KEY=your_recaptcha_v3_site_key
-CAPTCHA_SECRET_KEY=your_recaptcha_v3_secret_key
-CAPTCHA_MIN_SCORE=0.5
+CAPTCHA_SITE_KEY=your_recaptcha_v2_checkbox_site_key
+CAPTCHA_SECRET_KEY=your_recaptcha_v2_checkbox_secret_key
 GOOGLE_CLIENT_ID=your_google_oauth_web_client_id
 
 # frontend/.env
 VITE_API_URL=https://localhost:3000/api
 ```
 
-The reCAPTCHA keys belong in `backend/.env`. The public site key is provided
+Use a reCAPTCHA v2 “I’m not a robot” checkbox key pair. The keys belong in
+`backend/.env`. The public site key is provided
 to the browser through `/api/auth/captcha-config`; the secret key never leaves
 the API.
 

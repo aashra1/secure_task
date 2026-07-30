@@ -1,10 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Icon from "../components/Icons";
 import PasswordField from "../components/PasswordField";
 import GoogleSignIn from "../components/GoogleSignIn";
 import { register } from "../services/auth";
-import { createCaptchaPayload } from "../services/captcha";
+import CaptchaCheckbox from "../components/CaptchaCheckbox";
 import { passwordScore } from "../utils/helpers";
 import useAuth from "../hooks/useAuth";
 
@@ -19,26 +19,34 @@ export default function Register() {
   });
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaAttempt, setCaptchaAttempt] = useState(0);
+  const captchaError = useCallback((err) => setMessage(err.message), []);
+  const captchaChange = useCallback((token) => setCaptchaToken(token), []);
   const score = passwordScore(form.password);
   const submit = async (event) => {
     event.preventDefault();
     if (form.password !== form.confirm)
       return setMessage("Passwords do not match");
+    if (!captchaToken)
+      return setMessage("Please complete the CAPTCHA before registering.");
     setMessage("");
     setSubmitting(true);
     try {
-      const captcha = await createCaptchaPayload("register");
       await register({
         email: form.email,
         password: form.password,
         profile: { name: form.name },
-        ...captcha,
+        captchaToken,
+        captchaVersion: "v2",
       });
       navigate("/login");
     } catch (err) {
       setMessage(
         err.response?.data?.message || err.message || "Registration failed",
       );
+      setCaptchaToken("");
+      setCaptchaAttempt((attempt) => attempt + 1);
     } finally {
       setSubmitting(false);
     }
@@ -121,8 +129,13 @@ export default function Register() {
             onChange={(e) => setForm({ ...form, confirm: e.target.value })}
             required
           />
+          <CaptchaCheckbox
+            key={captchaAttempt}
+            onChange={captchaChange}
+            onError={captchaError}
+          />
           {message && <p className="error">{message}</p>}
-          <button disabled={submitting}>
+          <button disabled={submitting || !captchaToken}>
             <Icon name="check" size={18} />
             {submitting ? "Verifying…" : "Register"}
           </button>

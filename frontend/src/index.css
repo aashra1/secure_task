@@ -167,6 +167,8 @@ progress { accent-color: var(--brand); width: 100%; }
 .input-action:hover { transform: translateY(-50%); }
 .code-input { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .strength { align-items: center; display: grid; gap: 0.6rem; grid-template-columns: 1fr auto; }
+.captcha-field { display: grid; gap: 8px; overflow-x: auto; }
+.captcha-field > span { font-weight: 750; }
 
 .page-hero { align-items: center; display: flex; justify-content: space-between; min-height: 188px; overflow: hidden; padding: 28px; position: relative; }
 .page-hero::after { background: linear-gradient(135deg, rgba(15, 118, 110, 0.16), rgba(37, 99, 235, 0.08)); content: ""; inset: auto -10% -60% 45%; position: absolute; transform: rotate(-8deg); height: 220px; }
