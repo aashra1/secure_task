@@ -31,7 +31,13 @@ services:
       SALT_ROUNDS: 12
       MFA_ISSUER: SecureTask
       FRONTEND_URL: https://localhost:3001
-      EMAIL_SKIP: true 
+      EMAIL_SKIP: true
+      # Nginx terminates HTTPS; the backend uses HTTP inside Docker.
+      HTTPS_CERT_PATH: ""
+      HTTPS_KEY_PATH: ""
+      # Google's official reCAPTCHA v2 checkbox test keys for localhost.
+      CAPTCHA_SITE_KEY: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
+      CAPTCHA_SECRET_KEY: 6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
     ports:
       - "3000:3000"
     networks:
