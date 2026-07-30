@@ -3,21 +3,27 @@ import { useState } from "react";
 import useAuth from "../hooks/useAuth";
 import Icon from "../components/Icons";
 import PasswordField from "../components/PasswordField";
+import { createCaptchaPayload } from "../services/captcha";
 
 export default function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   if (user) return <Navigate to="/" replace />;
   const submit = async (event) => {
     event.preventDefault();
     setError("");
+    setSubmitting(true);
     try {
-      const data = await login(form);
+      const captcha = await createCaptchaPayload("login");
+      const data = await login({ ...form, ...captcha });
       navigate(data.mfaRequired ? "/mfa/verify" : "/");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || err.message || "Login failed");
+    } finally {
+      setSubmitting(false);
     }
   };
   return (
@@ -56,9 +62,9 @@ export default function Login() {
             required
           />
           {error && <p className="error">{error}</p>}
-          <button>
+          <button disabled={submitting}>
             <Icon name="lock" size={18} />
-            Login
+            {submitting ? "Verifying…" : "Login"}
           </button>
           <Link className="muted center-link" to="/register">
             Create an account

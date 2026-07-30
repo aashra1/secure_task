@@ -19,6 +19,8 @@ services:
       dockerfile: Dockerfile
     container_name: securetask-backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       NODE_ENV: production
       PORT: 3000

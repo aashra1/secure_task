@@ -25,10 +25,17 @@ The local environment should contain:
 FRONTEND_URL=https://localhost:3001
 HTTPS_CERT_PATH=../certs/localhost.pem
 HTTPS_KEY_PATH=../certs/localhost-key.pem
+CAPTCHA_SITE_KEY=your_recaptcha_v3_site_key
+CAPTCHA_SECRET_KEY=your_recaptcha_v3_secret_key
+CAPTCHA_MIN_SCORE=0.5
 
 # frontend/.env
 VITE_API_URL=https://localhost:3000/api
 ```
+
+The reCAPTCHA keys belong in `backend/.env`. The public site key is provided
+to the browser through `/api/auth/captcha-config`; the secret key never leaves
+the API.
 
 Generated private keys and certificates under `certs/` are ignored by Git.
 

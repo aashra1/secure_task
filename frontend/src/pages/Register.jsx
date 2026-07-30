@@ -3,6 +3,7 @@ import { useState } from "react";
 import Icon from "../components/Icons";
 import PasswordField from "../components/PasswordField";
 import { register } from "../services/auth";
+import { createCaptchaPayload } from "../services/captcha";
 import { passwordScore } from "../utils/helpers";
 
 export default function Register() {
@@ -14,20 +15,29 @@ export default function Register() {
     confirm: "",
   });
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const score = passwordScore(form.password);
   const submit = async (event) => {
     event.preventDefault();
     if (form.password !== form.confirm)
       return setMessage("Passwords do not match");
+    setMessage("");
+    setSubmitting(true);
     try {
+      const captcha = await createCaptchaPayload("register");
       await register({
         email: form.email,
         password: form.password,
         profile: { name: form.name },
+        ...captcha,
       });
       navigate("/login");
     } catch (err) {
-      setMessage(err.response?.data?.message || "Registration failed");
+      setMessage(
+        err.response?.data?.message || err.message || "Registration failed",
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
   return (
@@ -92,9 +102,9 @@ export default function Register() {
             required
           />
           {message && <p className="error">{message}</p>}
-          <button>
+          <button disabled={submitting}>
             <Icon name="check" size={18} />
-            Register
+            {submitting ? "Verifying…" : "Register"}
           </button>
           <Link className="muted center-link" to="/login">
             Back to login

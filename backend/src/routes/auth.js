@@ -13,6 +13,13 @@ const validate = (req, res, next) => {
   return next();
 };
 
+router.get('/captcha-config', (_req, res) => {
+  const enabled = Boolean(process.env.CAPTCHA_SECRET_KEY);
+  if (enabled && !process.env.CAPTCHA_SITE_KEY) {
+    return res.status(503).json({ message: 'CAPTCHA site key is not configured' });
+  }
+  return res.json({ siteKey: enabled ? process.env.CAPTCHA_SITE_KEY : null });
+});
 router.post('/register', registerLimiter, captcha('register'), registerValidation, validate, controller.register);
 router.post('/login', loginLimiter, captcha('login'), loginValidation, validate, controller.login);
 router.post('/verify-mfa', mfaLimiter, body('userId').isMongoId(), mfaValidation, validate, controller.verifyMfa);
